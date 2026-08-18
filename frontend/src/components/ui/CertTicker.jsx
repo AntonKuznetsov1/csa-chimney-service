@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import wettImage from '../../assets/images/WETT.jpeg';
 import heartPatioImage from '../../assets/images/HeartAndPatioAssociation.png';
@@ -12,6 +12,16 @@ const certs = [
 
 export default function CertTicker() {
   const tickerItems = [...certs, ...certs, ...certs, ...certs];
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateViewport = () => setIsMobile(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener('change', updateViewport);
+    return () => mediaQuery.removeEventListener('change', updateViewport);
+  }, []);
 
   return (
     <div className="relative w-full bg-brand-black py-10 overflow-hidden flex items-center border-y-4 border-brand-orange">
@@ -19,10 +29,10 @@ export default function CertTicker() {
       <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-48 z-10 bg-gradient-to-r from-brand-black to-transparent pointer-events-none"></div>
       <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-48 z-10 bg-gradient-to-l from-brand-black to-transparent pointer-events-none"></div>
 
-      <div className="w-full">
+      <div className="w-full overflow-x-auto md:overflow-hidden touch-pan-x md:touch-auto">
         <motion.div
-          className="flex space-x-16 sm:space-x-20 items-center"
-          animate={{ x: ["0%", "-50%"] }}
+          className="flex min-w-max space-x-16 sm:space-x-20 items-center px-4 md:px-0"
+          animate={isMobile ? false : { x: ["0%", "-50%"] }}
           transition={{ ease: "linear", duration: 18, repeat: Infinity }}
         >
           {tickerItems.map((cert, index) => (
