@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../ui/Button';
+import logoImage from '../../assets/images/logo.jpeg';
 
 export default function Navbar() {
   return (
@@ -9,7 +10,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-24">
           <Link to="/" className="flex-shrink-0 flex items-center gap-3">
             <img 
-              src="/src/assets/images/logo.jpeg" 
+              src={logoImage}
               alt="CSA Chimney Service Logo" 
               className="h-16 w-auto object-contain"
               onError={(e) => e.target.style.display = 'none'}

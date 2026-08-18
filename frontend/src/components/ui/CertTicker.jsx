@@ -1,10 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import wettImage from '../../assets/images/WETT.jpeg';
+import heartPatioImage from '../../assets/images/HeartAndPatioAssociation.png';
+import nbcettImage from '../../assets/images/NBCETT.png';
 
 const certs = [
-  { name: "WETT Certified", src: "/src/assets/images/WETT.jpeg" },
-  { name: "Heart & Patio Association", src: "/src/assets/images/HeartAndPatioAssociation.png" },
-  { name: "NBCETT", src: "/src/assets/images/NBCETT.png" }
+  { name: 'WETT Certified', src: wettImage },
+  { name: 'Heart & Patio Association', src: heartPatioImage },
+  { name: 'NBCETT', src: nbcettImage },
 ];
 
 export default function CertTicker() {
