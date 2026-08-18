@@ -54,14 +54,17 @@ export default function AdminPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/bookings`, {
+      const res = await fetch(`${API_BASE_URL}/api/bookings/`, {
         headers: {
           'X-Admin-Password': passToTry,
         },
       });
 
       if (!res.ok) {
-        throw new Error('Invalid password or unauthorized access');
+        if (res.status === 401) {
+          throw new Error('Invalid admin password');
+        }
+        throw new Error(`Backend request failed (${res.status})`);
       }
 
       const data = await res.json();
@@ -79,7 +82,11 @@ export default function AdminPage() {
         }
       }
     } catch (err) {
-      setError(err.message || 'Failed to authenticate');
+      if (err instanceof TypeError) {
+        setError('Cannot connect to the backend. Check VITE_API_BASE_URL and the backend service.');
+      } else {
+        setError(err.message || 'Failed to authenticate');
+      }
       setIsAuthenticated(false);
     } finally {
       setLoading(false);

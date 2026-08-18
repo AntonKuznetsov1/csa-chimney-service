@@ -4,19 +4,12 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 
+from app.core.security import verify_admin_password
 from app.db.database import get_db
 from app.db.models import Service
 from app.schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse
 
 router = APIRouter(prefix="/services", tags=["services"])
-
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "password")
-
-
-def verify_admin_password(x_admin_password: str = Header(...)):
-    if x_admin_password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin password")
-    return True
 
 
 @router.get("/", response_model=List[ServiceResponse])

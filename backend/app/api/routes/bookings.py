@@ -4,22 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.security import verify_admin_password
 from app.db.database import get_db
 from app.db.models import Booking, Service
 from app.schemas.booking import BookingCreate, BookingResponse
 from app.services.email import send_booking_email, send_status_update_email
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
-
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "password")
-
-
-def verify_admin_password(x_admin_password: str = Header(...)):
-    if x_admin_password != ADMIN_PASSWORD:
-        raise HTTPException(
-            status_code=401, detail="Unauthorized: Invalid admin password"
-        )
-    return True
 
 
 class BookingStatusUpdate(BaseModel):
