@@ -80,11 +80,11 @@ export default function LandingPage() {
               Book Your Service <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </Link>
-          <a href="#contact">
+          <Link to="/book">
             <Button variant="outline" className="w-full sm:w-auto text-lg px-8 py-4">
               Get a Free Quote
             </Button>
-          </a>
+          </Link>
         </div>
       </section>
 
