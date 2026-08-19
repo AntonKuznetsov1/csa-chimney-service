@@ -22,6 +22,7 @@ export default function BookingPage() {
   const [timeSlots, setTimeSlots] = useState([]);
   const [selectedTime, setSelectedTime] = useState('');
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotError, setSlotError] = useState('');
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -65,6 +66,7 @@ export default function BookingPage() {
     if (!selectedDate) {
       setTimeSlots([]);
       setSelectedTime('');
+      setSlotError('');
       return;
     }
 
@@ -72,15 +74,19 @@ export default function BookingPage() {
       setLoadingSlots(true);
       setTimeSlots([]);
       setSelectedTime('');
+      setSlotError('');
       try {
         const res = await fetch(`${API_BASE_URL}/api/slots/?date=${encodeURIComponent(selectedDate)}`);
         if (res.ok) {
           const data = await res.json();
           setTimeSlots(Array.isArray(data) ? data : []);
           setSelectedTime(Array.isArray(data) && data.length > 0 ? data[0] : '');
+        } else {
+          setSlotError('Unable to check availability for this date. Please try again.');
         }
       } catch (err) {
         console.warn('Could not load dynamic slots, using defaults:', err);
+        setSlotError('Unable to check availability for this date. Please try again.');
       } finally {
         setLoadingSlots(false);
       }
@@ -88,6 +94,37 @@ export default function BookingPage() {
 
     fetchSlots();
   }, [selectedDate]);
+
+  const continueToContactDetails = async () => {
+    if (!selectedDate || !selectedTime) return;
+
+    setLoadingSlots(true);
+    setSlotError('');
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/slots/?date=${encodeURIComponent(selectedDate)}`
+      );
+      if (!response.ok) {
+        throw new Error('Unable to check availability for this date.');
+      }
+
+      const availableTimes = await response.json();
+      if (!availableTimes.includes(selectedTime)) {
+        setTimeSlots(availableTimes);
+        setSelectedTime(availableTimes[0] || '');
+        setSlotError(
+          'That time was just booked. Please choose another available time.'
+        );
+        return;
+      }
+
+      setStep(3);
+    } catch (err) {
+      setSlotError(err.message || 'Unable to check availability. Please try again.');
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -267,6 +304,11 @@ export default function BookingPage() {
                           )}
                         </>
                       )}
+                        {slotError && (
+                          <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-4 mt-3">
+                            {slotError}
+                          </p>
+                        )}
                     </div>}
                     <div className="flex gap-4 pt-4">
                       <button
@@ -279,7 +321,7 @@ export default function BookingPage() {
                       <button
                         type="button"
                         disabled={!selectedDate || !selectedTime || timeSlots.length === 0}
-                        onClick={() => setStep(3)}
+                        onClick={continueToContactDetails}
                         className="w-2/3 bg-brand-orange disabled:opacity-50 text-black font-bold py-4 rounded-xl hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
                       >
                         Next: Contact Info <ChevronRight className="w-5 h-5" />
