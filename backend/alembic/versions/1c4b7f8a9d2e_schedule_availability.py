@@ -52,40 +52,58 @@ def upgrade() -> None:
         )
         op.create_index("ix_bookings_id", "bookings", ["id"], unique=False)
 
-    op.create_table(
-        "schedule_blocks",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("blocked_date", sa.Date(), nullable=False),
-        sa.Column("blocked_time", sa.String(length=50), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "blocked_date", "blocked_time", name="uq_schedule_block_date_time"
-        ),
-    )
-    op.create_index("ix_schedule_blocks_id", "schedule_blocks", ["id"], unique=False)
-    op.create_index(
-        "ix_schedule_blocks_blocked_date",
-        "schedule_blocks",
-        ["blocked_date"],
-        unique=False,
-    )
-    op.create_table(
-        "schedule_settings",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("slots", sa.JSON(), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        "uq_booking_date_time",
-        "bookings",
-        ["booking_date", "booking_time"],
-        unique=True,
-    )
+    if "schedule_blocks" not in tables:
+        op.create_table(
+            "schedule_blocks",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("blocked_date", sa.Date(), nullable=False),
+            sa.Column("blocked_time", sa.String(length=50), nullable=True),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint(
+                "blocked_date", "blocked_time", name="uq_schedule_block_date_time"
+            ),
+        )
+        op.create_index("ix_schedule_blocks_id", "schedule_blocks", ["id"], unique=False)
+        op.create_index(
+            "ix_schedule_blocks_blocked_date",
+            "schedule_blocks",
+            ["blocked_date"],
+            unique=False,
+        )
+
+    if "schedule_settings" not in tables:
+        op.create_table(
+            "schedule_settings",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("slots", sa.JSON(), nullable=False),
+            sa.PrimaryKeyConstraint("id"),
+        )
+
+    booking_indexes = {
+        index["name"] for index in inspector.get_indexes("bookings") if index["name"]
+    }
+    booking_constraints = {
+        constraint["name"]
+        for constraint in inspector.get_unique_constraints("bookings")
+        if constraint["name"]
+    }
+    if "uq_booking_date_time" not in booking_indexes and "uq_booking_date_time" not in booking_constraints:
+        op.create_index(
+            "uq_booking_date_time",
+            "bookings",
+            ["booking_date", "booking_time"],
+            unique=True,
+        )
 
 
 def downgrade() -> None:
-    op.drop_index("uq_booking_date_time", table_name="bookings")
-    op.drop_table("schedule_settings")
-    op.drop_index("ix_schedule_blocks_blocked_date", table_name="schedule_blocks")
-    op.drop_index("ix_schedule_blocks_id", table_name="schedule_blocks")
-    op.drop_table("schedule_blocks")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "uq_booking_date_time" in {
+        index["name"] for index in inspector.get_indexes("bookings") if index["name"]
+    }:
+        op.drop_index("uq_booking_date_time", table_name="bookings")
+    if "schedule_settings" in inspector.get_table_names():
+        op.drop_table("schedule_settings")
+    if "schedule_blocks" in inspector.get_table_names():
+        op.drop_table("schedule_blocks")
