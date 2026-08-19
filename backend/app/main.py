@@ -23,8 +23,6 @@ async def lifespan(app: FastAPI):
     yield
 
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="CSA Chimney Service API", version="1.0.0", lifespan=lifespan)
 
 raw_origins = os.getenv(

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
 
 class BookingCreate(BaseModel):
@@ -11,6 +11,13 @@ class BookingCreate(BaseModel):
     price: float
     bookingDate: str
     bookingTime: str
+
+    @field_validator("bookingDate", "bookingTime")
+    @classmethod
+    def validate_schedule_values(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Booking date and time are required")
+        return value.strip()
 
 class BookingResponse(BaseModel):
     id: int

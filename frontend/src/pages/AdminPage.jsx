@@ -24,6 +24,10 @@ export default function AdminPage() {
   const [newSlot, setNewSlot] = useState('');
   const [savingSlots, setSavingSlots] = useState(false);
   const [slotStatusMsg, setSlotStatusMsg] = useState('');
+  const [blockedDates, setBlockedDates] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
+  const [blockedDate, setBlockedDate] = useState('');
+  const [blockedTime, setBlockedTime] = useState('');
 
   // Email popup modal state
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -73,13 +77,14 @@ export default function AdminPage() {
       setIsAuthenticated(true);
       sessionStorage.setItem('csa_admin_pass', passToTry);
 
-      // Fetch active slots
-      const slotRes = await fetch(`${API_BASE_URL}/api/slots/`);
-      if (slotRes.ok) {
-        const slotData = await slotRes.json();
-        if (Array.isArray(slotData) && slotData.length > 0) {
-          setSlots(slotData);
-        }
+      const scheduleRes = await fetch(`${API_BASE_URL}/api/slots/config`, {
+        headers: { 'X-Admin-Password': passToTry },
+      });
+      if (scheduleRes.ok) {
+        const schedule = await scheduleRes.json();
+        setSlots(Array.isArray(schedule.slots) ? schedule.slots : []);
+        setBlockedDates(Array.isArray(schedule.blocked_dates) ? schedule.blocked_dates : []);
+        setBlockedSlots(Array.isArray(schedule.blocked_slots) ? schedule.blocked_slots : []);
       }
     } catch (err) {
       if (err instanceof TypeError) {
@@ -215,13 +220,13 @@ export default function AdminPage() {
     setSavingSlots(true);
     setSlotStatusMsg('');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/slots/`, {
+      const res = await fetch(`${API_BASE_URL}/api/slots/config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'X-Admin-Password': password,
         },
-        body: JSON.stringify(slots),
+        body: JSON.stringify({ slots, blocked_dates: blockedDates, blocked_slots: blockedSlots }),
       });
 
       if (!res.ok) {
@@ -234,6 +239,21 @@ export default function AdminPage() {
       setSlotStatusMsg(err.message || 'Error saving slots');
     } finally {
       setSavingSlots(false);
+    }
+  };
+
+  const addBlockedDate = () => {
+    if (blockedDate && !blockedDates.includes(blockedDate)) {
+      setBlockedDates((current) => [...current, blockedDate].sort());
+      setBlockedDate('');
+    }
+  };
+
+  const addBlockedSlot = () => {
+    if (blockedDate && blockedTime && !blockedSlots.some((block) => block.date === blockedDate && block.time === blockedTime)) {
+      setBlockedSlots((current) => [...current, { date: blockedDate, time: blockedTime }]);
+      setBlockedDate('');
+      setBlockedTime('');
     }
   };
 
@@ -517,6 +537,44 @@ export default function AdminPage() {
               Add Slot
             </button>
           </form>
+
+          <div className="border-t border-neutral-800 pt-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Unavailable Dates and Times</h3>
+              <p className="text-xs text-neutral-400">Block a full day, or block one slot on a specific day.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
+              <input
+                type="date"
+                value={blockedDate}
+                onChange={(e) => setBlockedDate(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
+              />
+              <select
+                value={blockedTime}
+                onChange={(e) => setBlockedTime(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
+              >
+                <option value="">Entire day</option>
+                {slots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+              </select>
+              <button type="button" onClick={blockedTime ? addBlockedSlot : addBlockedDate} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold px-4 py-2 rounded-lg transition">
+                Block Date/Time
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {blockedDates.map((date) => (
+                <button key={date} type="button" onClick={() => setBlockedDates((current) => current.filter((item) => item !== date))} className="px-3 py-1.5 rounded-lg text-xs bg-red-500/10 border border-red-500/20 text-red-300">
+                  {date} (all day) ×
+                </button>
+              ))}
+              {blockedSlots.map((block) => (
+                <button key={`${block.date}-${block.time}`} type="button" onClick={() => setBlockedSlots((current) => current.filter((item) => item.date !== block.date || item.time !== block.time))} className="px-3 py-1.5 rounded-lg text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                  {block.date} {block.time} ×
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Bookings Table */}
