@@ -1,4 +1,5 @@
 import os
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,14 +13,19 @@ import app.db.models  # Registers SQLAlchemy models
 from app.api.routes import bookings, services, slots
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    alembic_cfg = Config(str(ROOT_DIR / "alembic.ini"))
-    alembic_cfg.set_main_option("script_location", str(ROOT_DIR / "alembic"))
-    alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
-    command.upgrade(alembic_cfg, "head")
+    try:
+        alembic_cfg = Config(str(ROOT_DIR / "alembic.ini"))
+        alembic_cfg.set_main_option("script_location", str(ROOT_DIR / "alembic"))
+        alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+        command.upgrade(alembic_cfg, "head")
+    except Exception:
+        logger.exception("Database migration failed during application startup")
+        raise
     yield
 
 

@@ -79,15 +79,16 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("id"),
         )
 
-    booking_indexes = {
-        index["name"] for index in inspector.get_indexes("bookings") if index["name"]
-    }
-    booking_constraints = {
-        constraint["name"]
+    booking_columns = {"booking_date", "booking_time"}
+    has_booking_uniqueness = any(
+        set(index.get("column_names") or []) == booking_columns
+        for index in inspector.get_indexes("bookings")
+        if index.get("unique")
+    ) or any(
+        set(constraint.get("column_names") or []) == booking_columns
         for constraint in inspector.get_unique_constraints("bookings")
-        if constraint["name"]
-    }
-    if "uq_booking_date_time" not in booking_indexes and "uq_booking_date_time" not in booking_constraints:
+    )
+    if not has_booking_uniqueness:
         op.create_index(
             "uq_booking_date_time",
             "bookings",
