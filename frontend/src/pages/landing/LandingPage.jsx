@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowRight, 
@@ -17,7 +17,6 @@ import Footer from '../../components/layout/Footer';
 import DottedBackground from '../../components/ui/DottedBackground';
 import Button from '../../components/ui/Button';
 import CertTicker from '../../components/ui/CertTicker';
-import { API_BASE_URL } from '../../config';
 
 const serviceAreas = [
   "Miramichi", "Bathurst", "Tracadie", "Doaktown", "Rogersville", 
@@ -25,32 +24,40 @@ const serviceAreas = [
   "Sunny Corner", "Renous", "Allardville", "Millerton"
 ];
 
-const serviceIcons = [ShieldCheck, Search, Sparkles, Flame, FileCheck, CheckCircle2];
+const detailedServices = [
+  {
+    icon: ShieldCheck,
+    title: "WETT Certified Inspections",
+    desc: "Official WETT-certified evaluations required for insurance compliance, home buying, selling, or code validation."
+  },
+  {
+    icon: Search,
+    title: "Chimney & Wood Stove Inspections",
+    desc: "Thorough structural and safety evaluations of your complete chimney system, fireplaces, and wood-burning stoves."
+  },
+  {
+    icon: Sparkles,
+    title: "Professional Chimney Cleaning",
+    desc: "Complete removal of soot, ash, and creosote build-up to maintain optimal draft and maximize heating efficiency."
+  },
+  {
+    icon: Flame,
+    title: "Flue & Stove Pipe Checks",
+    desc: "Detailed inspection of connecting pipes, clearances, dampers, and flue liners to ensure safe operation."
+  },
+  {
+    icon: FileCheck,
+    title: "Creosote & Safety Assessment",
+    desc: "Identification of dangerous creosote glaze accumulation, blockage hazards, and fire prevention risks."
+  },
+  {
+    icon: CheckCircle2,
+    title: "Reliable & Professional Service",
+    desc: "Dependable scheduling, clean workspace protection, and expert advice for long-term hearth safety."
+  }
+];
 
 export default function LandingPage() {
-  const [services, setServices] = useState([]);
-  const [servicesLoading, setServicesLoading] = useState(true);
-
-  useEffect(() => {
-    const loadServices = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/services/`);
-        if (!response.ok) {
-          throw new Error('Unable to load services');
-        }
-        const data = await response.json();
-        setServices(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.warn('Could not load public services:', error);
-        setServices([]);
-      } finally {
-        setServicesLoading(false);
-      }
-    };
-
-    loadServices();
-  }, []);
-
   return (
     <DottedBackground>
       <Navbar />
@@ -73,13 +80,11 @@ export default function LandingPage() {
               Book Your Service <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </Link>
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto text-lg px-8 py-4"
-            onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-          >
+          <a href="#contact">
+            <Button variant="outline" className="w-full sm:w-auto text-lg px-8 py-4">
               Get a Free Quote
-          </Button>
+            </Button>
+          </a>
         </div>
       </section>
 
@@ -96,21 +101,19 @@ export default function LandingPage() {
 
           {/* Detailed Services Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {servicesLoading ? (
-              <p className="md:col-span-2 lg:col-span-3 text-center text-gray-500">Loading services...</p>
-            ) : services.length === 0 ? (
-              <p className="md:col-span-2 lg:col-span-3 text-center text-gray-500">Services will be listed here soon.</p>
-            ) : services.map((service, idx) => {
-              const Icon = serviceIcons[idx % serviceIcons.length];
+            {detailedServices.map((service, idx) => {
+              const Icon = service.icon;
               return (
-                <div key={service.id} className="p-8 border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 bg-white relative overflow-hidden group flex flex-col justify-between">
+                <div key={idx} className="p-8 border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 bg-white relative overflow-hidden group flex flex-col justify-between">
                   <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-orange transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
                   <div>
                     <div className="w-14 h-14 bg-brand-orange/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-brand-orange transition-colors duration-300">
                       <Icon className="w-7 h-7 text-brand-orange group-hover:text-white transition-colors duration-300" />
                     </div>
                     <h3 className="text-2xl font-bold text-brand-black mb-3">{service.title}</h3>
-                    <p className="text-gray-600 leading-relaxed text-sm">{service.description || 'Service details available upon request.'}</p>
+                    <p className="text-gray-600 leading-relaxed text-sm">
+                      {service.desc}
+                    </p>
                   </div>
                 </div>
               );
@@ -191,13 +194,13 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-brand-black mb-2">Service Required</label>
-                  <select className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-colors" defaultValue="">
-                    <option value="" disabled>
-                      {servicesLoading ? 'Loading services...' : 'Select a service'}
-                    </option>
-                    {services.map((service) => (
-                      <option key={service.id} value={service.id}>{service.title}</option>
-                    ))}
+                  <select className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-orange focus:border-brand-orange outline-none transition-colors">
+                    <option>WETT Certified Inspection</option>
+                    <option>Chimney Cleaning / Sweeping</option>
+                    <option>Wood Stove Inspection</option>
+                    <option>Flue & Stove Pipe Check</option>
+                    <option>Creosote & Safety Assessment</option>
+                    <option>General Inquiry / Other</option>
                   </select>
                 </div>
                 <div>

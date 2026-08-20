@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../../config';
 
+const DEFAULT_TIME_SLOTS = ['09:00 AM', '11:30 AM', '02:00 PM', '04:30 PM'];
+
 export default function BookingPage() {
   const [services, setServices] = useState([]);
   const [step, setStep] = useState(1);
@@ -19,10 +21,9 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState('');
   
   // Dynamic time slots state
-  const [timeSlots, setTimeSlots] = useState([]);
-  const [selectedTime, setSelectedTime] = useState('');
+  const [timeSlots, setTimeSlots] = useState(DEFAULT_TIME_SLOTS);
+  const [selectedTime, setSelectedTime] = useState(DEFAULT_TIME_SLOTS[0]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [slotError, setSlotError] = useState('');
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -62,69 +63,28 @@ export default function BookingPage() {
     fetchServices();
   }, []);
 
+  // Fetch available slots from backend on mount
   useEffect(() => {
-    if (!selectedDate) {
-      setTimeSlots([]);
-      setSelectedTime('');
-      setSlotError('');
-      return;
-    }
-
     const fetchSlots = async () => {
       setLoadingSlots(true);
-      setTimeSlots([]);
-      setSelectedTime('');
-      setSlotError('');
       try {
-        const res = await fetch(`${API_BASE_URL}/api/slots/?date=${encodeURIComponent(selectedDate)}`);
+        const res = await fetch(`${API_BASE_URL}/api/slots/`);
         if (res.ok) {
           const data = await res.json();
-          setTimeSlots(Array.isArray(data) ? data : []);
-          setSelectedTime(Array.isArray(data) && data.length > 0 ? data[0] : '');
-        } else {
-          setSlotError('Unable to check availability for this date. Please try again.');
+          if (Array.isArray(data) && data.length > 0) {
+            setTimeSlots(data);
+            setSelectedTime(data[0]);
+          }
         }
       } catch (err) {
         console.warn('Could not load dynamic slots, using defaults:', err);
-        setSlotError('Unable to check availability for this date. Please try again.');
       } finally {
         setLoadingSlots(false);
       }
     };
 
     fetchSlots();
-  }, [selectedDate]);
-
-  const continueToContactDetails = async () => {
-    if (!selectedDate || !selectedTime) return;
-
-    setLoadingSlots(true);
-    setSlotError('');
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/slots/?date=${encodeURIComponent(selectedDate)}`
-      );
-      if (!response.ok) {
-        throw new Error('Unable to check availability for this date.');
-      }
-
-      const availableTimes = await response.json();
-      if (!availableTimes.includes(selectedTime)) {
-        setTimeSlots(availableTimes);
-        setSelectedTime(availableTimes[0] || '');
-        setSlotError(
-          'That time was just booked. Please choose another available time.'
-        );
-        return;
-      }
-
-      setStep(3);
-    } catch (err) {
-      setSlotError(err.message || 'Unable to check availability. Please try again.');
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
+  }, []);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -265,51 +225,35 @@ export default function BookingPage() {
                       <input
                         type="date"
                         value={selectedDate}
-                        min={new Date().toISOString().split('T')[0]}
-                        onChange={(e) => {
-                          setSelectedDate(e.target.value);
-                          setErrorMessage('');
-                        }}
+                        onChange={(e) => setSelectedDate(e.target.value)}
                         className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white focus:outline-none focus:border-brand-orange"
                       />
                     </div>
-                    {selectedDate && <div>
+                    <div>
                       <label className="block text-sm font-semibold mb-2 text-neutral-300">Available Slots</label>
                       {loadingSlots ? (
                         <div className="flex items-center gap-2 text-sm text-neutral-400 py-4">
                           <Loader2 className="w-4 h-4 animate-spin text-brand-orange" /> Loading available times...
                         </div>
                       ) : (
-                        <>
-                          <div className="grid grid-cols-2 gap-3">
-                            {timeSlots.map((slot) => (
-                              <button
-                                key={slot}
-                                type="button"
-                                onClick={() => setSelectedTime(slot)}
-                                className={`p-4 rounded-xl border text-sm font-semibold transition-all ${
-                                  selectedTime === slot
-                                    ? 'bg-brand-orange text-black border-brand-orange'
-                                    : 'bg-neutral-900 text-neutral-300 border-neutral-800 hover:border-neutral-700'
-                                }`}
-                              >
-                                {slot}
-                              </button>
-                            ))}
-                          </div>
-                          {!loadingSlots && timeSlots.length === 0 && (
-                            <p className="text-sm text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                              No times are available on this date. Please choose another date.
-                            </p>
-                          )}
-                        </>
+                        <div className="grid grid-cols-2 gap-3">
+                          {timeSlots.map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => setSelectedTime(slot)}
+                              className={`p-4 rounded-xl border text-sm font-semibold transition-all ${
+                                selectedTime === slot
+                                  ? 'bg-brand-orange text-black border-brand-orange'
+                                  : 'bg-neutral-900 text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                              }`}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
                       )}
-                        {slotError && (
-                          <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-4 mt-3">
-                            {slotError}
-                          </p>
-                        )}
-                    </div>}
+                    </div>
                     <div className="flex gap-4 pt-4">
                       <button
                         type="button"
@@ -320,8 +264,8 @@ export default function BookingPage() {
                       </button>
                       <button
                         type="button"
-                        disabled={!selectedDate || !selectedTime || timeSlots.length === 0}
-                        onClick={continueToContactDetails}
+                        disabled={!selectedDate || !selectedTime}
+                        onClick={() => setStep(3)}
                         className="w-2/3 bg-brand-orange disabled:opacity-50 text-black font-bold py-4 rounded-xl hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
                       >
                         Next: Contact Info <ChevronRight className="w-5 h-5" />

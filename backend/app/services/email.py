@@ -1,47 +1,22 @@
 import os
-import json
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-EMAIL_FROM = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
-BOOKING_NOTIFICATION_EMAIL = os.getenv(
-  "BOOKING_NOTIFICATION_EMAIL", "csachimney@gmail.com"
-)
-
-
-def _send_resend_email(to_addresses, subject, text_body, html_body):
-  if not RESEND_API_KEY:
-    print("[WARN] RESEND_API_KEY missing. Skipping email dispatch.")
-    return
-
-  request = Request(
-    "https://api.resend.com/emails",
-    data=json.dumps({
-      "from": EMAIL_FROM,
-      "to": to_addresses,
-      "subject": subject,
-      "text": text_body,
-      "html": html_body,
-    }).encode("utf-8"),
-    headers={
-      "Authorization": f"Bearer {RESEND_API_KEY}",
-      "Content-Type": "application/json",
-    },
-    method="POST",
-  )
-
-  try:
-    with urlopen(request, timeout=15) as response:
-      response.read()
-    print(f"[SUCCESS] Email sent to {', '.join(to_addresses)}")
-  except (HTTPError, URLError, TimeoutError) as error:
-    print(f"[ERROR] Failed to send email through Resend: {error}")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
 
 def send_booking_email(booking):
-    recipients = list(dict.fromkeys([booking.email, BOOKING_NOTIFICATION_EMAIL]))
+    if not SMTP_USER or not SMTP_PASS:
+        print("[WARN] SMTP credentials missing. Skipping email dispatch.")
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Inspection Confirmed: {booking.service_title}"
+    msg["From"] = f"CSA Chimney Service <{SMTP_USER}>"
+    msg["To"] = booking.email
 
     text_body = f"""
     Hello {booking.full_name},
@@ -79,15 +54,29 @@ def send_booking_email(booking):
     </html>
     """
 
-    _send_resend_email(
-      recipients,
-      f"New booking: {booking.service_title}",
-      text_body,
-      html_body,
-    )
+    msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, [booking.email], msg.as_string())
+            print(f"[SUCCESS] Email confirmation sent to {booking.email}")
+    except Exception as e:
+        print(f"[ERROR] Failed to send email: {e}")
 
 
 def send_status_update_email(to_email: str, subject: str, body: str):
+    if not SMTP_USER or not SMTP_PASS:
+        print("[WARN] SMTP credentials missing. Skipping email dispatch.")
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"CSA Chimney Service <{SMTP_USER}>"
+    msg["To"] = to_email
+
     # Convert line breaks to HTML breaks for the HTML body
     formatted_html_body = body.replace("\n", "<br/>")
 
@@ -106,4 +95,14 @@ def send_status_update_email(to_email: str, subject: str, body: str):
     </html>
     """
 
-    _send_resend_email([to_email], subject, body, html_body)
+    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, [to_email], msg.as_string())
+            print(f"[SUCCESS] Status update email sent to {to_email}")
+    except Exception as e:
+        print(f"[ERROR] Failed to send status update email: {e}")

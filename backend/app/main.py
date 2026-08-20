@@ -1,29 +1,36 @@
 import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.db.database import DATABASE_URL, Base, engine
 import app.db.models  # Registers SQLAlchemy models
-from app.api.routes import blog, bookings, services, slots
+from app.api.routes import bookings, services, slots
 
-app = FastAPI(title="CSA Chimney Service API", version="1.0.0")
+ROOT_DIR = Path(__file__).resolve().parent.parent
 
-raw_origins = os.getenv("ALLOWED_ORIGINS", "")
-configured_origins = [
-    origin.strip().rstrip("/").strip('"').strip("'")
-    for origin in raw_origins.split(",")
-    if origin.strip()
-]
-origins = list(
-    dict.fromkeys(
-        configured_origins
-        + [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "https://csachimney.com",
-            "https://www.csachimney.com",
-        ]
-    )
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    alembic_cfg = Config(str(ROOT_DIR / "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", str(ROOT_DIR / "alembic"))
+    alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+    command.upgrade(alembic_cfg, "head")
+    yield
+
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="CSA Chimney Service API", version="1.0.0", lifespan=lifespan)
+
+raw_origins = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 )
+origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,7 +43,6 @@ app.add_middleware(
 app.include_router(bookings.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
 app.include_router(slots.router, prefix="/api")
-app.include_router(blog.router, prefix="/api")
 
 
 @app.get("/")

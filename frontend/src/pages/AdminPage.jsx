@@ -7,12 +7,6 @@ const EMPTY_SERVICE_FORM = {
   desc: '',
 };
 
-const EMPTY_BLOG_FORM = {
-  title: '',
-  description: '',
-  image_url: '',
-};
-
 export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -24,21 +18,12 @@ export default function AdminPage() {
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [serviceStatusMsg, setServiceStatusMsg] = useState('');
   const [serviceLoading, setServiceLoading] = useState(false);
-  const [blogPosts, setBlogPosts] = useState([]);
-  const [blogForm, setBlogForm] = useState(EMPTY_BLOG_FORM);
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [blogStatusMsg, setBlogStatusMsg] = useState('');
-  const [blogLoading, setBlogLoading] = useState(false);
 
   // Time slot management state
   const [slots, setSlots] = useState(['09:00 AM', '11:30 AM', '02:00 PM', '04:30 PM']);
   const [newSlot, setNewSlot] = useState('');
   const [savingSlots, setSavingSlots] = useState(false);
   const [slotStatusMsg, setSlotStatusMsg] = useState('');
-  const [blockedDates, setBlockedDates] = useState([]);
-  const [blockedSlots, setBlockedSlots] = useState([]);
-  const [blockedDate, setBlockedDate] = useState('');
-  const [blockedTime, setBlockedTime] = useState('');
 
   // Email popup modal state
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -65,12 +50,6 @@ export default function AdminPage() {
     }
   };
 
-  const fetchBlogPosts = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/blog/`);
-    if (!response.ok) throw new Error('Unable to load blog posts');
-    setBlogPosts(await response.json());
-  };
-
   const fetchBookingsAndSlots = async (passToTry) => {
     setLoading(true);
     setError('');
@@ -91,18 +70,16 @@ export default function AdminPage() {
       const data = await res.json();
       setBookings(data);
       await fetchServices(passToTry);
-      await fetchBlogPosts();
       setIsAuthenticated(true);
       sessionStorage.setItem('csa_admin_pass', passToTry);
 
-      const scheduleRes = await fetch(`${API_BASE_URL}/api/slots/config`, {
-        headers: { 'X-Admin-Password': passToTry },
-      });
-      if (scheduleRes.ok) {
-        const schedule = await scheduleRes.json();
-        setSlots(Array.isArray(schedule.slots) ? schedule.slots : []);
-        setBlockedDates(Array.isArray(schedule.blocked_dates) ? schedule.blocked_dates : []);
-        setBlockedSlots(Array.isArray(schedule.blocked_slots) ? schedule.blocked_slots : []);
+      // Fetch active slots
+      const slotRes = await fetch(`${API_BASE_URL}/api/slots/`);
+      if (slotRes.ok) {
+        const slotData = await slotRes.json();
+        if (Array.isArray(slotData) && slotData.length > 0) {
+          setSlots(slotData);
+        }
       }
     } catch (err) {
       if (err instanceof TypeError) {
@@ -220,51 +197,6 @@ export default function AdminPage() {
       setServiceStatusMsg(err.message || 'Error deleting service');
     }
   };
-
-  const handleBlogInputChange = (event) => {
-    const { name, value } = event.target;
-    setBlogForm((current) => ({ ...current, [name]: value }));
-  };
-
-  const handleSaveBlogPost = async (event) => {
-    event.preventDefault();
-    setBlogLoading(true);
-    setBlogStatusMsg('');
-    try {
-      const response = await fetch(
-        editingPostId ? `${API_BASE_URL}/api/blog/${editingPostId}` : `${API_BASE_URL}/api/blog/`,
-        {
-          method: editingPostId ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-          body: JSON.stringify(blogForm),
-        }
-      );
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.detail || 'Unable to save blog post');
-      await fetchBlogPosts();
-      setBlogForm(EMPTY_BLOG_FORM);
-      setEditingPostId(null);
-      setBlogStatusMsg(editingPostId ? 'Blog post updated.' : 'Blog post published.');
-    } catch (saveError) {
-      setBlogStatusMsg(saveError.message);
-    } finally {
-      setBlogLoading(false);
-    }
-  };
-
-  const handleDeleteBlogPost = async (postId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/blog/${postId}`, {
-        method: 'DELETE',
-        headers: { 'X-Admin-Password': password },
-      });
-      if (!response.ok) throw new Error('Unable to delete blog post');
-      setBlogPosts((current) => current.filter((post) => post.id !== postId));
-      setBlogStatusMsg('Blog post deleted.');
-    } catch (deleteError) {
-      setBlogStatusMsg(deleteError.message);
-    }
-  };
   
   const handleAddSlot = (e) => {
     e.preventDefault();
@@ -283,13 +215,13 @@ export default function AdminPage() {
     setSavingSlots(true);
     setSlotStatusMsg('');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/slots/config`, {
+      const res = await fetch(`${API_BASE_URL}/api/slots/`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'X-Admin-Password': password,
         },
-        body: JSON.stringify({ slots, blocked_dates: blockedDates, blocked_slots: blockedSlots }),
+        body: JSON.stringify(slots),
       });
 
       if (!res.ok) {
@@ -302,21 +234,6 @@ export default function AdminPage() {
       setSlotStatusMsg(err.message || 'Error saving slots');
     } finally {
       setSavingSlots(false);
-    }
-  };
-
-  const addBlockedDate = () => {
-    if (blockedDate && !blockedDates.includes(blockedDate)) {
-      setBlockedDates((current) => [...current, blockedDate].sort());
-      setBlockedDate('');
-    }
-  };
-
-  const addBlockedSlot = () => {
-    if (blockedDate && blockedTime && !blockedSlots.some((block) => block.date === blockedDate && block.time === blockedTime)) {
-      setBlockedSlots((current) => [...current, { date: blockedDate, time: blockedTime }]);
-      setBlockedDate('');
-      setBlockedTime('');
     }
   };
 
@@ -600,76 +517,6 @@ export default function AdminPage() {
               Add Slot
             </button>
           </form>
-
-          <div className="border-t border-neutral-800 pt-4 space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold text-white">Unavailable Dates and Times</h3>
-              <p className="text-xs text-neutral-400">Block a full day, or block one slot on a specific day.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
-              <input
-                type="date"
-                value={blockedDate}
-                onChange={(e) => setBlockedDate(e.target.value)}
-                className="bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
-              />
-              <select
-                value={blockedTime}
-                onChange={(e) => setBlockedTime(e.target.value)}
-                className="bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-500"
-              >
-                <option value="">Entire day</option>
-                {slots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
-              </select>
-              <button type="button" onClick={blockedTime ? addBlockedSlot : addBlockedDate} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold px-4 py-2 rounded-lg transition">
-                Block Date/Time
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {blockedDates.map((date) => (
-                <button key={date} type="button" onClick={() => setBlockedDates((current) => current.filter((item) => item !== date))} className="px-3 py-1.5 rounded-lg text-xs bg-red-500/10 border border-red-500/20 text-red-300">
-                  {date} (all day) ×
-                </button>
-              ))}
-              {blockedSlots.map((block) => (
-                <button key={`${block.date}-${block.time}`} type="button" onClick={() => setBlockedSlots((current) => current.filter((item) => item.date !== block.date || item.time !== block.time))} className="px-3 py-1.5 rounded-lg text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                  {block.date} {block.time} ×
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-xl space-y-5">
-          <div className="border-b border-neutral-800 pb-3">
-            <h2 className="text-lg font-bold text-white">Blog Posts</h2>
-            <p className="text-xs text-neutral-400">Publish a post with an image URL, title, and description.</p>
-          </div>
-          {blogStatusMsg && <p className="text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg">{blogStatusMsg}</p>}
-          <form onSubmit={handleSaveBlogPost} className="grid gap-4">
-            <input name="title" value={blogForm.title} onChange={handleBlogInputChange} required placeholder="Post title" className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
-            <input type="url" name="image_url" value={blogForm.image_url} onChange={handleBlogInputChange} required placeholder="Image URL (https://...)" className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
-            <textarea name="description" value={blogForm.description} onChange={handleBlogInputChange} required rows="4" placeholder="Post description" className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 resize-none" />
-            <div className="flex justify-end gap-3">
-              {editingPostId && <button type="button" onClick={() => { setEditingPostId(null); setBlogForm(EMPTY_BLOG_FORM); }} className="px-4 py-2 rounded-lg text-xs font-semibold bg-neutral-800 text-neutral-300 hover:bg-neutral-700">Cancel Edit</button>}
-              <button type="submit" disabled={blogLoading} className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold px-5 py-2.5 rounded-lg disabled:opacity-50">{blogLoading ? 'Saving...' : editingPostId ? 'Save Post Changes' : 'Publish Post'}</button>
-            </div>
-          </form>
-          <div className="grid gap-3 md:grid-cols-2">
-            {blogPosts.map((post) => (
-              <div key={post.id} className="flex gap-3 border border-neutral-800 rounded-lg p-3 bg-neutral-950/80">
-                <img src={post.image_url} alt="" className="w-20 h-20 object-cover rounded-md" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-white truncate">{post.title}</p>
-                  <p className="text-xs text-neutral-500 mt-1">{post.likes} likes</p>
-                  <div className="flex gap-2 mt-3">
-                    <button type="button" onClick={() => { setEditingPostId(post.id); setBlogForm({ title: post.title, description: post.description, image_url: post.image_url }); }} className="text-xs text-neutral-200 hover:text-orange-400">Edit</button>
-                    <button type="button" onClick={() => handleDeleteBlogPost(post.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Bookings Table */}
