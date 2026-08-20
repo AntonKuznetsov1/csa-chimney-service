@@ -67,7 +67,7 @@ export default function AdminPage() {
 
   const fetchBlogs = async (passToTry) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/blogs/`, {
+      const res = await fetch(`${API_BASE_URL}/api/blog/`, {
         headers: {
           'X-Admin-Password': passToTry,
         },
@@ -270,8 +270,8 @@ export default function AdminPage() {
       }
 
       const url = editingBlogId
-        ? `${API_BASE_URL}/api/blogs/${editingBlogId}`
-        : `${API_BASE_URL}/api/blogs/`;
+        ? `${API_BASE_URL}/api/blog/${editingBlogId}`
+        : `${API_BASE_URL}/api/blog/`;
 
       const method = editingBlogId ? 'PUT' : 'POST';
       
@@ -319,7 +319,7 @@ export default function AdminPage() {
 
   const handleDeleteBlog = async (blogId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/blogs/${encodeURIComponent(blogId)}`, {
+      const res = await fetch(`${API_BASE_URL}/api/blog/${encodeURIComponent(blogId)}`, {
         method: 'DELETE',
         headers: {
           'X-Admin-Password': password,
