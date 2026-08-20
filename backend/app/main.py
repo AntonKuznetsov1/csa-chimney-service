@@ -8,11 +8,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import DATABASE_URL, Base, engine
-import app.db.models  # Registers SQLAlchemy models
-from app.api.routes import bookings, services, slots
+import app.db.models
+from app.api.routes import bookings, services, slots, blog
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,7 +20,6 @@ async def lifespan(app: FastAPI):
     alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
     command.upgrade(alembic_cfg, "head")
     yield
-
 
 Base.metadata.create_all(bind=engine)
 
@@ -43,7 +41,7 @@ app.add_middleware(
 app.include_router(bookings.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
 app.include_router(slots.router, prefix="/api")
-
+app.include_router(blog.router, prefix="/api")
 
 @app.get("/")
 def read_root():

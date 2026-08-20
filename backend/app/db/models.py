@@ -1,7 +1,8 @@
 # app/db/models.py
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, func
 from datetime import datetime
 from app.db.database import Base
+
 
 
 class Service(Base):
@@ -31,3 +32,15 @@ class Booking(Base):
     booking_time = Column(String(50), nullable=False)
     status = Column(String(50), default="confirmed")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    image_url = Column(String, nullable=True)
+    likes = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

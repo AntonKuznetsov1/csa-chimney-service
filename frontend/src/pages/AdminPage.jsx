@@ -7,17 +7,32 @@ const EMPTY_SERVICE_FORM = {
   desc: '',
 };
 
+const EMPTY_BLOG_FORM = {
+  title: '',
+  description: '',
+  image: null,
+};
+
 export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
+  
   const [services, setServices] = useState([]);
   const [serviceForm, setServiceForm] = useState(EMPTY_SERVICE_FORM);
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [serviceStatusMsg, setServiceStatusMsg] = useState('');
   const [serviceLoading, setServiceLoading] = useState(false);
+
+  // Blog management state
+  const [blogs, setBlogs] = useState([]);
+  const [blogForm, setBlogForm] = useState(EMPTY_BLOG_FORM);
+  const [editingBlogId, setEditingBlogId] = useState(null);
+  const [blogStatusMsg, setBlogStatusMsg] = useState('');
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
 
   // Time slot management state
   const [slots, setSlots] = useState(['09:00 AM', '11:30 AM', '02:00 PM', '04:30 PM']);
@@ -50,6 +65,26 @@ export default function AdminPage() {
     }
   };
 
+  const fetchBlogs = async (passToTry) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/blogs/`, {
+        headers: {
+          'X-Admin-Password': passToTry,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Unable to load blogs');
+      }
+
+      const data = await res.json();
+      setBlogs(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Could not load blogs from backend:', err);
+      setBlogs([]);
+    }
+  };
+
   const fetchBookingsAndSlots = async (passToTry) => {
     setLoading(true);
     setError('');
@@ -70,6 +105,7 @@ export default function AdminPage() {
       const data = await res.json();
       setBookings(data);
       await fetchServices(passToTry);
+      await fetchBlogs(passToTry);
       setIsAuthenticated(true);
       sessionStorage.setItem('csa_admin_pass', passToTry);
 
@@ -104,6 +140,7 @@ export default function AdminPage() {
     sessionStorage.removeItem('csa_admin_pass');
   };
 
+  // --- Service Management ---
   const handleServiceInputChange = (e) => {
     const { name, value } = e.target;
     setServiceForm((prev) => ({ ...prev, [name]: value }));
@@ -166,7 +203,7 @@ export default function AdminPage() {
     setServiceForm({
       title: service.title,
       price: String(service.price),
-      desc: service.desc,
+      desc: service.description || service.desc,
     });
   };
 
@@ -189,7 +226,6 @@ export default function AdminPage() {
         setServiceForm(EMPTY_SERVICE_FORM);
       }
 
-      // Immediately remove from state so the UI updates
       setServices((prev) => prev.filter((service) => service.id !== serviceId));
       setServiceStatusMsg('Service removed successfully!');
       setTimeout(() => setServiceStatusMsg(''), 2500);
@@ -197,7 +233,122 @@ export default function AdminPage() {
       setServiceStatusMsg(err.message || 'Error deleting service');
     }
   };
-  
+
+  // --- Blog Management ---
+  const handleBlogInputChange = (e) => {
+    const { name, value } = e.target;
+    setBlogForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setBlogForm((prev) => ({ ...prev, image: file }));
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSaveBlog = async (e) => {
+    e.preventDefault();
+
+    const trimmedTitle = blogForm.title.trim();
+    const trimmedDesc = blogForm.description.trim();
+
+    if (!trimmedTitle || !trimmedDesc) {
+      setBlogStatusMsg('Please complete the title and description fields.');
+      return;
+    }
+
+    setBlogLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('title', trimmedTitle);
+      formData.append('description', trimmedDesc);
+      if (blogForm.image) {
+        formData.append('image', blogForm.image);
+      }
+
+      const url = editingBlogId
+        ? `${API_BASE_URL}/api/blogs/${editingBlogId}`
+        : `${API_BASE_URL}/api/blogs/`;
+
+      const method = editingBlogId ? 'PUT' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'X-Admin-Password': password,
+          // Let the browser set the Content-Type automatically for FormData to include the boundary
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || 'Failed to save blog post');
+      }
+
+      await fetchBlogs(password);
+      setBlogForm(EMPTY_BLOG_FORM);
+      setImagePreview(null);
+      setEditingBlogId(null);
+      
+      if (document.getElementById('blog-image-upload')) {
+        document.getElementById('blog-image-upload').value = '';
+      }
+
+      setBlogStatusMsg(editingBlogId ? 'Blog post updated successfully!' : 'Blog post published successfully!');
+      setTimeout(() => setBlogStatusMsg(''), 2500);
+    } catch (err) {
+      setBlogStatusMsg(err.message || 'Error saving blog post');
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  const handleEditBlog = (blog) => {
+    setEditingBlogId(blog.id);
+    setBlogForm({
+      title: blog.title,
+      description: blog.description,
+      image: null,
+    });
+    setImagePreview(blog.image_url || null);
+  };
+
+  const handleDeleteBlog = async (blogId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/blogs/${encodeURIComponent(blogId)}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Admin-Password': password,
+        },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || 'Failed to delete blog post');
+      }
+
+      if (editingBlogId === blogId) {
+        setEditingBlogId(null);
+        setBlogForm(EMPTY_BLOG_FORM);
+        setImagePreview(null);
+        if (document.getElementById('blog-image-upload')) {
+          document.getElementById('blog-image-upload').value = '';
+        }
+      }
+
+      setBlogs((prev) => prev.filter((blog) => blog.id !== blogId));
+      setBlogStatusMsg('Blog post removed successfully!');
+      setTimeout(() => setBlogStatusMsg(''), 2500);
+    } catch (err) {
+      setBlogStatusMsg(err.message || 'Error deleting blog post');
+    }
+  };
+
+  // --- Slot Management ---
   const handleAddSlot = (e) => {
     e.preventDefault();
     const formatted = newSlot.trim();
@@ -237,6 +388,7 @@ export default function AdminPage() {
     }
   };
 
+  // --- Booking Status & Email Management ---
   const handleOpenStatusModal = (booking) => {
     setSelectedBooking(booking);
     setEmailBody(
@@ -247,7 +399,6 @@ export default function AdminPage() {
     );
   };
 
-  // Direct backend API request to dispatch email and update booking status
   const handleSendEmailAndChangeStatus = async () => {
     if (!selectedBooking) return;
 
@@ -271,7 +422,6 @@ export default function AdminPage() {
         throw new Error('Failed to send email via server');
       }
 
-      // Update state locally upon success
       setBookings((prevBookings) =>
         prevBookings.map((b) =>
           b.id === selectedBooking.id ? { ...b, status: 'changed' } : b
@@ -360,7 +510,7 @@ export default function AdminPage() {
           </div>
 
           {serviceStatusMsg && (
-            <p className="text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg">
+            <p className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg">
               {serviceStatusMsg}
             </p>
           )}
@@ -449,6 +599,130 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={() => handleDeleteService(service.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Blog Posts Section */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+            <div>
+              <h2 className="text-lg font-bold text-white">Blog Posts</h2>
+              <p className="text-xs text-neutral-400">Create, edit, or remove blog posts with images.</p>
+            </div>
+          </div>
+
+          {blogStatusMsg && (
+            <p className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg">
+              {blogStatusMsg}
+            </p>
+          )}
+
+          <form onSubmit={handleSaveBlog} className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Post Title</label>
+              <input
+                type="text"
+                name="title"
+                value={blogForm.title}
+                onChange={handleBlogInputChange}
+                placeholder="e.g. Preparing Your Chimney for Winter"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Cover Image</label>
+              <input
+                id="blog-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-neutral-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-neutral-300 hover:file:bg-neutral-700 focus:outline-none cursor-pointer"
+              />
+              {imagePreview && (
+                <div className="mt-3">
+                  <img src={imagePreview} alt="Blog Preview" className="h-16 w-auto object-cover rounded border border-neutral-700" />
+                </div>
+              )}
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Description</label>
+              <textarea
+                name="description"
+                value={blogForm.description}
+                onChange={handleBlogInputChange}
+                rows="4"
+                placeholder="Write your blog post content here..."
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 resize-none"
+              />
+            </div>
+
+            <div className="md:col-span-2 flex justify-end gap-3">
+              {editingBlogId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingBlogId(null);
+                    setBlogForm(EMPTY_BLOG_FORM);
+                    setImagePreview(null);
+                    if (document.getElementById('blog-image-upload')) {
+                      document.getElementById('blog-image-upload').value = '';
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition"
+                >
+                  Cancel Edit
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={blogLoading}
+                className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold px-5 py-2.5 rounded-lg transition disabled:opacity-50"
+              >
+                {blogLoading ? 'Saving...' : editingBlogId ? 'Save Blog Changes' : 'Publish Blog Post'}
+              </button>
+            </div>
+          </form>
+
+          <div className="space-y-3 pt-2">
+            {blogs.length === 0 ? (
+              <p className="text-sm text-neutral-500">No blog posts published yet.</p>
+            ) : (
+              blogs.map((blog) => (
+                <div key={blog.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 border border-neutral-800 rounded-lg p-4 bg-neutral-950/80">
+                  <div className="flex gap-4 items-start">
+                    {blog.image_url ? (
+                      <img src={blog.image_url} alt={blog.title} className="w-16 h-16 object-cover rounded-md border border-neutral-700 shrink-0" />
+                    ) : (
+                      <div className="w-16 h-16 bg-neutral-800 rounded-md border border-neutral-700 flex items-center justify-center text-[10px] text-neutral-500 shrink-0 uppercase tracking-wider font-semibold">
+                        No Img
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-semibold text-white">{blog.title}</div>
+                      <div className="text-xs text-neutral-400 mt-1 line-clamp-2 pr-4">{blog.description}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleEditBlog(blog)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-neutral-800 text-neutral-200 hover:bg-neutral-700 transition"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteBlog(blog.id)}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition"
                     >
                       Delete
