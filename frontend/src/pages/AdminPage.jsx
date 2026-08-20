@@ -10,7 +10,7 @@ const EMPTY_SERVICE_FORM = {
 const EMPTY_BLOG_FORM = {
   title: '',
   description: '',
-  image_url: '',
+  image: null,
 };
 
 export default function AdminPage() {
@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [editingBlogId, setEditingBlogId] = useState(null);
   const [blogStatusMsg, setBlogStatusMsg] = useState('');
   const [blogLoading, setBlogLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
 
   // Time slot management state
   const [slots, setSlots] = useState(['09:00 AM', '11:30 AM', '02:00 PM', '04:30 PM']);
@@ -239,12 +240,19 @@ export default function AdminPage() {
     setBlogForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setBlogForm((prev) => ({ ...prev, image: file }));
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSaveBlog = async (e) => {
     e.preventDefault();
 
     const trimmedTitle = blogForm.title.trim();
     const trimmedDesc = blogForm.description.trim();
-    const trimmedImageUrl = blogForm.image_url.trim();
 
     if (!trimmedTitle || !trimmedDesc) {
       setBlogStatusMsg('Please complete the title and description fields.');
@@ -254,6 +262,13 @@ export default function AdminPage() {
     setBlogLoading(true);
 
     try {
+      const formData = new FormData();
+      formData.append('title', trimmedTitle);
+      formData.append('description', trimmedDesc);
+      if (blogForm.image) {
+        formData.append('image', blogForm.image);
+      }
+
       const url = editingBlogId
         ? `${API_BASE_URL}/api/blog/${editingBlogId}`
         : `${API_BASE_URL}/api/blog/`;
@@ -263,14 +278,10 @@ export default function AdminPage() {
       const res = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
           'X-Admin-Password': password,
+          // Let the browser set the Content-Type automatically for FormData to include the boundary
         },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description: trimmedDesc,
-          image_url: trimmedImageUrl || null,
-        }),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -280,8 +291,13 @@ export default function AdminPage() {
 
       await fetchBlogs(password);
       setBlogForm(EMPTY_BLOG_FORM);
+      setImagePreview(null);
       setEditingBlogId(null);
       
+      if (document.getElementById('blog-image-upload')) {
+        document.getElementById('blog-image-upload').value = '';
+      }
+
       setBlogStatusMsg(editingBlogId ? 'Blog post updated successfully!' : 'Blog post published successfully!');
       setTimeout(() => setBlogStatusMsg(''), 2500);
     } catch (err) {
@@ -296,8 +312,9 @@ export default function AdminPage() {
     setBlogForm({
       title: blog.title,
       description: blog.description,
-      image_url: blog.image_url || '',
+      image: null,
     });
+    setImagePreview(blog.image_url || null);
   };
 
   const handleDeleteBlog = async (blogId) => {
@@ -317,6 +334,10 @@ export default function AdminPage() {
       if (editingBlogId === blogId) {
         setEditingBlogId(null);
         setBlogForm(EMPTY_BLOG_FORM);
+        setImagePreview(null);
+        if (document.getElementById('blog-image-upload')) {
+          document.getElementById('blog-image-upload').value = '';
+        }
       }
 
       setBlogs((prev) => prev.filter((blog) => blog.id !== blogId));
@@ -618,23 +639,17 @@ export default function AdminPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-400 mb-1">Cover Image URL</label>
+              <label className="block text-xs font-semibold text-neutral-400 mb-1">Cover Image</label>
               <input
-                type="text"
-                name="image_url"
-                value={blogForm.image_url}
-                onChange={handleBlogInputChange}
-                placeholder="https://example.com/image.jpg"
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                id="blog-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-neutral-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-neutral-300 hover:file:bg-neutral-700 focus:outline-none cursor-pointer"
               />
-              {blogForm.image_url && (
+              {imagePreview && (
                 <div className="mt-3">
-                  <img 
-                    src={blogForm.image_url} 
-                    alt="Blog Preview" 
-                    className="h-16 w-auto object-cover rounded border border-neutral-700" 
-                    onError={(e) => { e.target.style.display = 'none'; }} 
-                  />
+                  <img src={imagePreview} alt="Blog Preview" className="h-16 w-auto object-cover rounded border border-neutral-700" />
                 </div>
               )}
             </div>
@@ -658,6 +673,10 @@ export default function AdminPage() {
                   onClick={() => {
                     setEditingBlogId(null);
                     setBlogForm(EMPTY_BLOG_FORM);
+                    setImagePreview(null);
+                    if (document.getElementById('blog-image-upload')) {
+                      document.getElementById('blog-image-upload').value = '';
+                    }
                   }}
                   className="px-4 py-2 rounded-lg text-xs font-semibold bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition"
                 >
