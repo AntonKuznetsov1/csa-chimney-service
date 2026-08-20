@@ -1,5 +1,5 @@
 # app/db/models.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, func  # <--- Add Text here
 from datetime import datetime
 from app.db.database import Base
 
