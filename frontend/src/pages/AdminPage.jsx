@@ -7,6 +7,12 @@ const EMPTY_SERVICE_FORM = {
   desc: '',
 };
 
+const EMPTY_BLOG_FORM = {
+  title: '',
+  description: '',
+  image_url: '',
+};
+
 export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,6 +24,11 @@ export default function AdminPage() {
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [serviceStatusMsg, setServiceStatusMsg] = useState('');
   const [serviceLoading, setServiceLoading] = useState(false);
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [blogForm, setBlogForm] = useState(EMPTY_BLOG_FORM);
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [blogStatusMsg, setBlogStatusMsg] = useState('');
+  const [blogLoading, setBlogLoading] = useState(false);
 
   // Time slot management state
   const [slots, setSlots] = useState(['09:00 AM', '11:30 AM', '02:00 PM', '04:30 PM']);
@@ -54,6 +65,12 @@ export default function AdminPage() {
     }
   };
 
+  const fetchBlogPosts = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/blog/`);
+    if (!response.ok) throw new Error('Unable to load blog posts');
+    setBlogPosts(await response.json());
+  };
+
   const fetchBookingsAndSlots = async (passToTry) => {
     setLoading(true);
     setError('');
@@ -74,6 +91,7 @@ export default function AdminPage() {
       const data = await res.json();
       setBookings(data);
       await fetchServices(passToTry);
+      await fetchBlogPosts();
       setIsAuthenticated(true);
       sessionStorage.setItem('csa_admin_pass', passToTry);
 
@@ -200,6 +218,51 @@ export default function AdminPage() {
       setTimeout(() => setServiceStatusMsg(''), 2500);
     } catch (err) {
       setServiceStatusMsg(err.message || 'Error deleting service');
+    }
+  };
+
+  const handleBlogInputChange = (event) => {
+    const { name, value } = event.target;
+    setBlogForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSaveBlogPost = async (event) => {
+    event.preventDefault();
+    setBlogLoading(true);
+    setBlogStatusMsg('');
+    try {
+      const response = await fetch(
+        editingPostId ? `${API_BASE_URL}/api/blog/${editingPostId}` : `${API_BASE_URL}/api/blog/`,
+        {
+          method: editingPostId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+          body: JSON.stringify(blogForm),
+        }
+      );
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.detail || 'Unable to save blog post');
+      await fetchBlogPosts();
+      setBlogForm(EMPTY_BLOG_FORM);
+      setEditingPostId(null);
+      setBlogStatusMsg(editingPostId ? 'Blog post updated.' : 'Blog post published.');
+    } catch (saveError) {
+      setBlogStatusMsg(saveError.message);
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  const handleDeleteBlogPost = async (postId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/blog/${postId}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Password': password },
+      });
+      if (!response.ok) throw new Error('Unable to delete blog post');
+      setBlogPosts((current) => current.filter((post) => post.id !== postId));
+      setBlogStatusMsg('Blog post deleted.');
+    } catch (deleteError) {
+      setBlogStatusMsg(deleteError.message);
     }
   };
   
@@ -574,6 +637,38 @@ export default function AdminPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-xl space-y-5">
+          <div className="border-b border-neutral-800 pb-3">
+            <h2 className="text-lg font-bold text-white">Blog Posts</h2>
+            <p className="text-xs text-neutral-400">Publish a post with an image URL, title, and description.</p>
+          </div>
+          {blogStatusMsg && <p className="text-xs font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg">{blogStatusMsg}</p>}
+          <form onSubmit={handleSaveBlogPost} className="grid gap-4">
+            <input name="title" value={blogForm.title} onChange={handleBlogInputChange} required placeholder="Post title" className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
+            <input type="url" name="image_url" value={blogForm.image_url} onChange={handleBlogInputChange} required placeholder="Image URL (https://...)" className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
+            <textarea name="description" value={blogForm.description} onChange={handleBlogInputChange} required rows="4" placeholder="Post description" className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 resize-none" />
+            <div className="flex justify-end gap-3">
+              {editingPostId && <button type="button" onClick={() => { setEditingPostId(null); setBlogForm(EMPTY_BLOG_FORM); }} className="px-4 py-2 rounded-lg text-xs font-semibold bg-neutral-800 text-neutral-300 hover:bg-neutral-700">Cancel Edit</button>}
+              <button type="submit" disabled={blogLoading} className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold px-5 py-2.5 rounded-lg disabled:opacity-50">{blogLoading ? 'Saving...' : editingPostId ? 'Save Post Changes' : 'Publish Post'}</button>
+            </div>
+          </form>
+          <div className="grid gap-3 md:grid-cols-2">
+            {blogPosts.map((post) => (
+              <div key={post.id} className="flex gap-3 border border-neutral-800 rounded-lg p-3 bg-neutral-950/80">
+                <img src={post.image_url} alt="" className="w-20 h-20 object-cover rounded-md" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-white truncate">{post.title}</p>
+                  <p className="text-xs text-neutral-500 mt-1">{post.likes} likes</p>
+                  <div className="flex gap-2 mt-3">
+                    <button type="button" onClick={() => { setEditingPostId(post.id); setBlogForm({ title: post.title, description: post.description, image_url: post.image_url }); }} className="text-xs text-neutral-200 hover:text-orange-400">Edit</button>
+                    <button type="button" onClick={() => handleDeleteBlogPost(post.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

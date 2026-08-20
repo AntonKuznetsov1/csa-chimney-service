@@ -3,6 +3,7 @@ import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-d
 import LandingPage from './pages/landing/LandingPage';
 import BookingPage from './pages/booking/BookingPage';
 import AdminPage from './pages/AdminPage';
+import BlogPage from './pages/BlogPage';
 
 // Ensures page scrolls to top on route changes
 function ScrollToTop() {
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/book" element={<BookingPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/blog" element={<BlogPage />} />
       </Routes>
     </Router>
   );

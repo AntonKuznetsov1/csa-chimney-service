@@ -57,3 +57,20 @@ class ScheduleSettings(Base):
 
     id = Column(Integer, primary_key=True)
     slots = Column(JSON, nullable=False)
+
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(180), nullable=False)
+    description = Column(String(5000), nullable=False)
+    image_url = Column(String(1000), nullable=False)
+    likes = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
