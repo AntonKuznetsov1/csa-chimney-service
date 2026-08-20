@@ -7,6 +7,9 @@ SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
+BOOKING_NOTIFICATION_EMAIL = os.getenv(
+  "BOOKING_NOTIFICATION_EMAIL", "csachimney@gmail.com"
+)
 
 def send_booking_email(booking):
     if not SMTP_USER or not SMTP_PASS:
@@ -16,7 +19,8 @@ def send_booking_email(booking):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Inspection Confirmed: {booking.service_title}"
     msg["From"] = f"CSA Chimney Service <{SMTP_USER}>"
-    msg["To"] = booking.email
+    recipients = list(dict.fromkeys([booking.email, BOOKING_NOTIFICATION_EMAIL]))
+    msg["To"] = ", ".join(recipients)
 
     text_body = f"""
     Hello {booking.full_name},
@@ -61,8 +65,8 @@ def send_booking_email(booking):
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_USER, [booking.email], msg.as_string())
-            print(f"[SUCCESS] Email confirmation sent to {booking.email}")
+            server.sendmail(SMTP_USER, recipients, msg.as_string())
+            print(f"[SUCCESS] Booking email sent to {', '.join(recipients)}")
     except Exception as e:
         print(f"[ERROR] Failed to send email: {e}")
 
