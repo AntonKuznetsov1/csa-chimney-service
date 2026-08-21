@@ -24,6 +24,7 @@ def verify_admin(x_admin_password: str = Header(None)):
 # Helper function to handle the Supabase image upload
 async def upload_to_supabase(file: UploadFile) -> str:
     if not SUPABASE_URL or not SUPABASE_KEY:
+        print("CRITICAL: SUPABASE_URL or SUPABASE_KEY environment variables are missing in Render.")
         raise HTTPException(
             status_code=500,
             detail="SUPABASE_URL and SUPABASE_KEY environment variables are not configured."
@@ -33,24 +34,36 @@ async def upload_to_supabase(file: UploadFile) -> str:
     filename = f"{uuid.uuid4().hex}.{ext}"
     file_bytes = await file.read()
 
-    storage_url = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/{SUPABASE_BUCKET}/{filename}"
+    clean_url = SUPABASE_URL.rstrip('/')
+    storage_url = f"{clean_url}/storage/v1/object/{SUPABASE_BUCKET}/{filename}"
+    
     headers = {
         "Authorization": f"Bearer {SUPABASE_KEY}",
         "ApiKey": SUPABASE_KEY,
         "Content-Type": file.content_type or "image/jpeg"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(storage_url, content=file_bytes, headers=headers)
-        
-    if response.status_code not in (200, 201):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(storage_url, content=file_bytes, headers=headers)
+            
+        if response.status_code not in (200, 201):
+            print(f"SUPABASE UPLOAD ERROR ({response.status_code}): {response.text}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Supabase upload failed: {response.text}"
+            )
+
+        public_url = f"{clean_url}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
+        return public_url
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        print(f"UNHANDLED SUPABASE ERROR: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Supabase upload failed: {response.text}"
+            detail=f"Failed to upload image: {str(e)}"
         )
-
-    public_url = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
-    return public_url
 
 
 @router.get("/", response_model=List[BlogPostResponse])
@@ -67,7 +80,7 @@ async def create_post(
     _: None = Depends(verify_admin)
 ):
     image_url = None
-    if image:
+    if image and image.filename:
         image_url = await upload_to_supabase(image)
 
     db_post = BlogPost(
@@ -98,7 +111,7 @@ async def update_post(
     db_post.title = title
     db_post.description = description
     
-    if image:
+    if image and image.filename:
         db_post.image_url = await upload_to_supabase(image)
     
     db.commit()
