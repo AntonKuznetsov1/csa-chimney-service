@@ -1,8 +1,7 @@
 # app/db/models.py
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, func  # <--- Add Text here
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, func
 from datetime import datetime
 from app.db.database import Base
-
 
 
 class Service(Base):
@@ -42,5 +41,5 @@ class BlogPost(Base):
     description = Column(Text, nullable=False)
     image_url = Column(String, nullable=True)
     likes = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
