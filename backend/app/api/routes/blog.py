@@ -79,20 +79,29 @@ async def create_post(
     db: Session = Depends(get_db),
     _: None = Depends(verify_admin)
 ):
-    image_url = None
-    if image and image.filename:
-        image_url = await upload_to_supabase(image)
+    try:
+        image_url = None
+        if image and image.filename:
+            image_url = await upload_to_supabase(image)
 
-    db_post = BlogPost(
-        title=title,
-        description=description,
-        image_url=image_url,
-        likes=0
-    )
-    db.add(db_post)
-    db.commit()
-    db.refresh(db_post)
-    return db_post
+        db_post = BlogPost(
+            title=title,
+            description=description,
+            image_url=image_url,
+            likes=0
+        )
+        db.add(db_post)
+        db.commit()
+        db.refresh(db_post)
+        return db_post
+    except Exception as e:
+        db.rollback()
+        import traceback
+        # This forces the exact database error back to your terminal!
+        raise HTTPException(
+            status_code=500, 
+            detail=f"DB CRASH: {str(e)} | TRACE: {traceback.format_exc()}"
+        )
 
 
 @router.put("/{post_id}", response_model=BlogPostResponse)
