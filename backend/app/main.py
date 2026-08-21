@@ -25,8 +25,10 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="CSA Chimney Service API", version="1.0.0", lifespan=lifespan)
 
+# Added your production domain to the default origins list
 raw_origins = os.getenv(
-    "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    "ALLOWED_ORIGINS", 
+    "https://csachimney.com,https://www.csachimney.com,http://localhost:5173,http://127.0.0.1:5173"
 )
 origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
