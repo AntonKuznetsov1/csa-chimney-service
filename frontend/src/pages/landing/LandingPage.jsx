@@ -80,11 +80,18 @@ export default function LandingPage() {
               Book Your Service <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </Link>
-          <a href="#contact">
-            <Button variant="outline" className="w-full sm:w-auto text-lg px-8 py-4">
-              Get a Free Quote
-            </Button>
-          </a>
+          <Button 
+            variant="outline" 
+            className="w-full sm:w-auto text-lg px-8 py-4"
+            onClick={() => {
+              const contactSection = document.getElementById('contact');
+              if (contactSection) {
+                contactSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+          >
+            Get a Free Quote
+          </Button>
         </div>
       </section>
 

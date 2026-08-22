@@ -22,6 +22,8 @@ export default function Navbar() {
           
           <div className="hidden md:flex items-center space-x-8 text-brand-black font-medium">
             <a href="#services" className="hover:text-brand-orange transition-colors">Services</a>
+            {/* Added Blog Link Here */}
+            <Link to="/blog" className="hover:text-brand-orange transition-colors">Blog</Link>
             <a href="#contact" className="hover:text-brand-orange transition-colors">Contact</a>
             <Link to="/book">
               <Button variant="primary">Book Appointment</Button>
