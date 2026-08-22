@@ -74,15 +74,16 @@ export default function LandingPage() {
         <p className="text-xl text-gray-600 max-w-2xl mb-10 leading-relaxed">
           WETT inspections, wood stove checks, creosote removal, and professional chimney sweeping across Miramichi and North-Eastern New Brunswick.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Link to="/book">
-            <Button variant="primary" className="w-full sm:w-auto text-lg px-8 py-4">
+        <div className="flex flex-col sm:flex-row justify-center gap-4 w-full sm:w-auto">
+          {/* Add w-full to the Link wrapper and flex settings to the Button */}
+          <Link to="/book" className="w-full sm:w-auto flex">
+            <Button variant="primary" className="w-full sm:w-auto text-lg px-8 py-4 flex items-center justify-center">
               Book Your Service <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </Link>
           <Button 
             variant="outline" 
-            className="w-full sm:w-auto text-lg px-8 py-4"
+            className="w-full sm:w-auto text-lg px-8 py-4 flex items-center justify-center"
             onClick={() => {
               const contactSection = document.getElementById('contact');
               if (contactSection) {
