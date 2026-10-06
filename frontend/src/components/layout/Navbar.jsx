@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Button from '../ui/Button';
 import logoImage from '../../assets/images/logo.jpeg';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleSectionClick = (e, sectionId) => {
+    e.preventDefault();
+    setIsOpen(false);
+
+    if (location.pathname === '/') {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      navigate('/', { state: { scrollTo: sectionId } });
+    }
+  };
 
   return (
     <nav className="w-full bg-white border-b border-gray-100 shadow-sm sticky top-0 z-50">
@@ -25,9 +41,21 @@ export default function Navbar() {
           
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8 text-brand-black font-medium">
-            <a href="#services" className="hover:text-brand-orange transition-colors">Services</a>
+            <a 
+              href="#services" 
+              onClick={(e) => handleSectionClick(e, 'services')} 
+              className="hover:text-brand-orange transition-colors"
+            >
+              Services
+            </a>
             <Link to="/blog" className="hover:text-brand-orange transition-colors">Blog</Link>
-            <a href="#contact" className="hover:text-brand-orange transition-colors">Contact</a>
+            <a 
+              href="#contact" 
+              onClick={(e) => handleSectionClick(e, 'contact')} 
+              className="hover:text-brand-orange transition-colors"
+            >
+              Contact
+            </a>
             <Link to="/book">
               <Button variant="primary">Book Appointment</Button>
             </Link>
@@ -48,9 +76,21 @@ export default function Navbar() {
       {/* Mobile Menu Dropdown */}
       {isOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-xl pb-6 pt-2 px-4 flex flex-col space-y-4">
-          <a href="#services" onClick={() => setIsOpen(false)} className="px-4 py-2 font-medium text-brand-black hover:text-brand-orange hover:bg-gray-50 rounded-lg">Services</a>
+          <a 
+            href="#services" 
+            onClick={(e) => handleSectionClick(e, 'services')} 
+            className="px-4 py-2 font-medium text-brand-black hover:text-brand-orange hover:bg-gray-50 rounded-lg"
+          >
+            Services
+          </a>
           <Link to="/blog" onClick={() => setIsOpen(false)} className="px-4 py-2 font-medium text-brand-black hover:text-brand-orange hover:bg-gray-50 rounded-lg">Blog</Link>
-          <a href="#contact" onClick={() => setIsOpen(false)} className="px-4 py-2 font-medium text-brand-black hover:text-brand-orange hover:bg-gray-50 rounded-lg">Contact</a>
+          <a 
+            href="#contact" 
+            onClick={(e) => handleSectionClick(e, 'contact')} 
+            className="px-4 py-2 font-medium text-brand-black hover:text-brand-orange hover:bg-gray-50 rounded-lg"
+          >
+            Contact
+          </a>
           <div className="pt-2 px-4">
             <Link to="/book" onClick={() => setIsOpen(false)} className="w-full flex">
               <Button variant="primary" className="w-full">Book Appointment</Button>

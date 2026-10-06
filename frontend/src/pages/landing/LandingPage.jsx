@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   ArrowRight, 
   CheckCircle2, 
@@ -58,6 +58,17 @@ const detailedServices = [
 ];
 
 export default function LandingPage() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.scrollTo) {
+      const element = document.getElementById(location.state.scrollTo);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [location]);
+
   return (
     <DottedBackground>
       <Navbar />
@@ -75,7 +86,6 @@ export default function LandingPage() {
           WETT inspections, wood stove checks, creosote removal, and professional chimney sweeping across Miramichi and North-Eastern New Brunswick.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4 w-full sm:w-auto">
-          {/* Add w-full to the Link wrapper and flex settings to the Button */}
           <Link to="/book" className="w-full sm:w-auto flex">
             <Button variant="primary" className="w-full sm:w-auto text-lg px-8 py-4 flex items-center justify-center">
               Book Your Service <ArrowRight className="ml-2 w-5 h-5" />
@@ -127,8 +137,6 @@ export default function LandingPage() {
               );
             })}
           </div>
-
-
         </div>
       </section>
 
